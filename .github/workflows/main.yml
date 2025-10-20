@@ -1,49 +1,33 @@
-name: CI
-
-
+name: CI (ngrok corrected)
 
 on: [push, workflow_dispatch]
 
-
-
 jobs:
-
   build:
-
-
-
     runs-on: windows-latest
 
-
-
     steps:
+    - name: '📥 Installer ngrok via winget'
+      run: winget install --accept-package-agreements --accept-source-agreements ngrok/ngrok
 
-    - name: Download
-
-      run: Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-
-    - name: Extract
-
-      run: Expand-Archive ngrok.zip
-
-    - name: Auth
-
-      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-
+    - name: '🔑 Authentifier ngrok'
+      run: ngrok config add-authtoken $Env:NGROK_AUTH_TOKEN
       env:
-
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Enable TS
+    - name: '🔧 Activer RDP'
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
 
-      run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+    - name: '👤 Créer un utilisateur et définir le mot de passe'
+      run: |
+        # Pour des raisons de sécurité, le mot de passe n'est plus en clair
+        $password = "P@ssw" + (Get-Random -Minimum 1000 -Maximum 9999).ToString() + "rd!"
+        echo "Utilisateur : runneradmin"
+        echo "Mot de passe : $password"
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText $password -Force)
 
-    - run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-
-    - run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-
-    - run: Set-LocalUser -Name "leadminzooo" -Password (ConvertTo-SecureString -AsPlainText "ZiZiW@rLD91" -Force)
-
-    - name: Create Tunnel
-
-      run: .\ngrok\ngrok.exe tcp 3389
+    - name: '🚀 Créer le tunnel ngrok'
+      run: ngrok tcp 3389
